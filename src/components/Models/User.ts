@@ -1,4 +1,4 @@
-import { IBuyer, TPayment } from "../../types";
+import { IBuyer, TPayment, BuyerValidationErrors } from "../../types";
 
 export class User implements IBuyer {
     payment: TPayment;
@@ -52,8 +52,8 @@ export class User implements IBuyer {
         this.phone = '';
     }
 
-    public validate(): { payment?: string; email?: string; phone?: string; address?: string } {
-        const errors: { payment?: string; email?: string; phone?: string; address?: string } = {};
+    public validate(): BuyerValidationErrors {
+        const errors: BuyerValidationErrors = {};
         if (!this.payment) errors.payment = 'Не выбран вид оплаты';
         if (!this.email) errors.email = 'Укажите емэйл';
         if (!this.phone) errors.phone = 'Укажите телефон';

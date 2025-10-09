@@ -40,3 +40,11 @@ export interface IOrderRequest {
 export interface IOrderResponse {
     orderId: string;
 }
+
+// Validation error map for buyer fields
+export type BuyerValidationErrors = {
+    payment?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+};

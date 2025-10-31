@@ -5,13 +5,19 @@ import { User } from './components/Models/User';
 import type { IProduct, TPayment } from './types';
 import { apiProducts } from './utils/data';
 import { Api } from './components/base/Api';
+import { EventEmitter } from './components/base/Events';
 import { ShopApi } from './components/Services/ShopApi';
 import { API_URL } from './utils/constants';
+import { PageHeader } from './components/View/PageHeader';
+import { Gallery } from './components/View/Gallery';
+import { Modal } from './components/View/Modal';
 
-// ===== Тестирование моделей данных в консоли =====
+// ===== Тестирование моделей данных и событий в консоли =====
+const events = new EventEmitter();
+events.on(/.*/, (e) => console.log('Event:', e));
 
 // Catalog
-const catalog = new Catalog();
+const catalog = new Catalog(events);
 catalog.setProducts(apiProducts.items as IProduct[]);
 // Получение всех товаров
 console.log('Catalog.getProducts():', catalog.getProducts());
@@ -23,7 +29,7 @@ catalog.setSelectedProduct(catalog.getProductById(firstProductId) ?? null);
 console.log('Catalog.getSelectedProduct():', catalog.getSelectedProduct());
 
 // Cart
-const cart = new Cart();
+const cart = new Cart(events);
 console.log('Cart initial:', { items: cart.getItems(), count: cart.getCount(), total: cart.getTotal() });
 // Добавление пары товаров
 const p1 = apiProducts.items[0] as IProduct;
@@ -39,7 +45,7 @@ cart.clear();
 console.log('Cart after clear:', { items: cart.getItems(), count: cart.getCount(), total: cart.getTotal() });
 
 // User (Buyer)
-const user = new User();
+const user = new User(events);
 console.log('User initial:', user.get(), { valid: user.isValid(), errors: user.validate() });
 user.setAddress('г. Москва, ул. Пушкина, д. 1');
 user.setPhone('+7 999 000-00-00');
@@ -60,4 +66,18 @@ shopApi.getProducts()
     .catch((error) => {
         console.error('Failed to fetch products:', error);
     });
+
+// ===== Примитивное тестирование View и событий =====
+const headerEl = document.querySelector('.header') as HTMLElement;
+const galleryEl = document.querySelector('.gallery') as HTMLElement;
+const modalEl = document.getElementById('modal-container') as HTMLElement;
+
+if (headerEl && galleryEl && modalEl) {
+    const header = new PageHeader(headerEl, events);
+    const gallery = new Gallery(galleryEl);
+    const modal = new Modal(modalEl, events);
+    header.setCounter(0);
+    gallery.render();
+    modal.render();
+}
 

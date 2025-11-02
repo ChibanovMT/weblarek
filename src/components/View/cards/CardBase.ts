@@ -22,6 +22,7 @@ export abstract class CardBase extends Component<IProduct> {
 
     setId(id: string) {
         this.productId = id;
+        this.container.setAttribute('data-id', id);
     }
 
     setTitle(title: string) {

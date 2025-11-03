@@ -12,8 +12,14 @@ export class OrderForm extends FormBase {
         this.payCashBtn = this.container.querySelector('button[name="cash"]') as HTMLButtonElement;
         this.addressInput = this.container.querySelector('input[name="address"]') as HTMLInputElement;
 
-        this.payCardBtn.addEventListener('click', () => this.setPayment('online'));
-        this.payCashBtn.addEventListener('click', () => this.setPayment('upon-receipt'));
+        this.payCardBtn.addEventListener('click', () => {
+            this.setPayment('online');
+            this.events.emit('order:payment', { payment: 'online' });
+        });
+        this.payCashBtn.addEventListener('click', () => {
+            this.setPayment('upon-receipt');
+            this.events.emit('order:payment', { payment: 'upon-receipt' });
+        });
 
         this.addressInput.addEventListener('input', () => {
             this.events.emit('order:address', { address: this.addressInput.value });
@@ -23,7 +29,6 @@ export class OrderForm extends FormBase {
     setPayment(payment: TPayment) {
         this.payCardBtn.classList.toggle('button_alt-active', payment === 'online');
         this.payCashBtn.classList.toggle('button_alt-active', payment === 'upon-receipt');
-        this.events.emit('order:payment', { payment });
     }
 }
 

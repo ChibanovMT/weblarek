@@ -21,6 +21,10 @@ export class Cart {
     }
 
     public add(product: IProduct): void {
+        // Do not add the same product twice
+        if (this.has(product.id)) {
+            return;
+        }
         this.items.push(product);
         this.events?.emit('cart:changed', { items: this.items.slice(), count: this.getCount(), total: this.getTotal() });
     }

@@ -75,6 +75,7 @@ events.on('catalog:selected', ({ id }: { id: string | null }) => {
     const previewElement = template.content.cloneNode(true) as HTMLElement;
     const preview = new CardPreview(previewElement.firstElementChild as HTMLElement, events);
     preview.render({ ...product, description: product.description });
+    preview.setInCart(cart.has(product.id));
     modal.open(preview.render({ ...product, description: product.description }));
 });
 
@@ -138,12 +139,20 @@ events.on('card:add', ({ id }: { id: string }) => {
     const product = catalog.getProductById(id);
     if (product && product.price !== null) {
         cart.add(product);
+        // Close the preview modal after adding the product
+        modal.close();
     }
 });
 
 // Обработчик события basket:item-remove - удаление товара из корзины
 events.on('basket:item-remove', ({ id }: { id: string }) => {
     cart.remove(id);
+});
+
+// Обработчик события card:remove - удаление товара из корзины из превью
+events.on('card:remove', ({ id }: { id: string }) => {
+    cart.remove(id);
+    modal.close();
 });
 
 // Обработчик события basket:open - открытие корзины

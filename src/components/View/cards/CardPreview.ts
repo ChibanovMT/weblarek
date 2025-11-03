@@ -4,6 +4,8 @@ import { CardBase } from './CardBase';
 export class CardPreview extends CardBase {
     protected addButton: HTMLButtonElement;
     protected textEl: HTMLElement | null;
+    protected isInCart = false;
+    protected currentPrice: number | null = null;
 
     constructor(container: HTMLElement, events: import('../../base/Events').IEvents) {
         super(container, events);
@@ -12,7 +14,12 @@ export class CardPreview extends CardBase {
 
         this.addButton?.addEventListener('click', (e) => {
             e.preventDefault();
-            if (this.productId) this.events.emit('card:add', { id: this.productId });
+            if (!this.productId || this.addButton.disabled) return;
+            if (this.isInCart) {
+                this.events.emit('card:remove', { id: this.productId });
+            } else {
+                this.events.emit('card:add', { id: this.productId });
+            }
         });
     }
 
@@ -29,6 +36,28 @@ export class CardPreview extends CardBase {
         if (data?.image) this.setImageSrc(data.image, data.title);
         this.setText((data as any)?.description);
         return this.container;
+    }
+
+    setInCart(inCart: boolean) {
+        this.isInCart = inCart;
+        this.updateButtonState();
+    }
+
+    setPrice(price: number | null) {
+        super.setPrice(price);
+        this.currentPrice = price;
+        this.updateButtonState();
+    }
+
+    protected updateButtonState() {
+        if (!this.addButton) return;
+        if (this.currentPrice === null) {
+            this.addButton.disabled = true;
+            this.addButton.textContent = 'Недоступно';
+        } else {
+            this.addButton.disabled = false;
+            this.addButton.textContent = this.isInCart ? 'Удалить из корзины' : 'Купить';
+        }
     }
 }
 

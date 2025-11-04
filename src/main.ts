@@ -101,23 +101,32 @@ events.on('cart:changed', ({ count, total }: { items: IProduct[]; count: number;
 // Обработчик события user:changed - валидация формы
 events.on('user:changed', () => {
     const errors = user.validate();
-    const isValid = user.isValid();
 
+    // Валидация для OrderForm (только payment и address)
     if (orderForm) {
-        orderForm.setValid(isValid);
-        if (!isValid) {
-            const errorMessages = Object.values(errors).filter(Boolean);
-            orderForm.setErrors(errorMessages.join(', '));
+        const orderErrors: string[] = [];
+        if (errors.payment) orderErrors.push(errors.payment);
+        if (errors.address) orderErrors.push(errors.address);
+        const isOrderValid = !errors.payment && !errors.address;
+        
+        orderForm.setValid(isOrderValid);
+        if (!isOrderValid) {
+            orderForm.setErrors(orderErrors.join(', '));
         } else {
             orderForm.setErrors('');
         }
     }
 
+    // Валидация для ContactsForm (только email и phone)
     if (contactsForm) {
-        contactsForm.setValid(isValid);
-        if (!isValid) {
-            const errorMessages = Object.values(errors).filter(Boolean);
-            contactsForm.setErrors(errorMessages.join(', '));
+        const contactsErrors: string[] = [];
+        if (errors.email) contactsErrors.push(errors.email);
+        if (errors.phone) contactsErrors.push(errors.phone);
+        const isContactsValid = !errors.email && !errors.phone;
+        
+        contactsForm.setValid(isContactsValid);
+        if (!isContactsValid) {
+            contactsForm.setErrors(contactsErrors.join(', '));
         } else {
             contactsForm.setErrors('');
         }
@@ -199,27 +208,53 @@ events.on('order:next', () => {
 
 // Обработчик события order:submit - отправка заказа
 events.on('order:submit', async () => {
-    if (!user.isValid()) return;
+    console.log('order:submit event received');
+    if (!user.isValid()) {
+        console.log('User data is not valid');
+        return;
+    }
+
+    const items = cart.getItems().filter(item => item.price !== null);
+    if (items.length === 0) {
+        console.log('Cart is empty');
+        if (contactsForm) {
+            contactsForm.setErrors('Корзина пуста. Добавьте товары для оформления заказа.');
+        }
+        return;
+    }
 
     const orderData: IOrderRequest = {
         payment: user.payment,
         email: user.email,
         phone: user.phone,
         address: user.address,
-        items: cart.getItems()
-            .filter(item => item.price !== null)
-            .map(item => ({ id: item.id, price: item.price as number }))
+        items: items.map(item => ({ id: item.id, price: item.price as number }))
     };
 
+    console.log('Sending order:', orderData);
     try {
         const response = await shopApi.postOrder(orderData);
-        console.log('Order submitted:', response);
+        console.log('Order submitted successfully:', response);
 
         const template = document.querySelector('#success') as HTMLTemplateElement;
+        if (!template) {
+            console.error('Success template not found');
+            return;
+        }
         const successElement = template.content.cloneNode(true) as HTMLElement;
-        const success = new OrderSuccess(successElement.firstElementChild as HTMLElement, events);
-        success.setTotal(cart.getTotal());
-        modal.setContent(success.render());
+        const successContainer = successElement.firstElementChild as HTMLElement;
+        if (!successContainer) {
+            console.error('Success template has no content');
+            return;
+        }
+        const success = new OrderSuccess(successContainer, events);
+        const total = cart.getTotal();
+        console.log('Setting total:', total);
+        success.setTotal(total);
+        const rendered = success.render();
+        console.log('Rendered success element:', rendered);
+        modal.open(rendered);
+        console.log('Modal opened with success content');
     } catch (error) {
         console.error('Failed to submit order:', error);
         if (contactsForm) {
@@ -264,15 +299,29 @@ events.on('form:change', ({ name, value }: { name: string; value: string }) => {
 
 // Обработчик события form:submit - отправка формы
 events.on('form:submit', () => {
-    // Проверяем валидность перед переходом
-    if (!user.isValid()) return;
+    console.log('form:submit event received');
+    const errors = user.validate();
 
     // Определяем, какая форма отправлена, по текущему контексту
     if (orderForm) {
+        console.log('Processing OrderForm submit');
+        // Для OrderForm проверяем только payment и address
+        const isOrderValid = !errors.payment && !errors.address;
+        if (!isOrderValid) {
+            console.log('OrderForm validation failed:', errors);
+            return;
+        }
         // Переход ко второй форме оформления заказа
         events.emit('order:next');
     } else if (contactsForm) {
+        console.log('Processing ContactsForm submit');
+        // Для ContactsForm при отправке проверяем все поля
+        if (!user.isValid()) {
+            console.log('ContactsForm validation failed');
+            return;
+        }
         // Отправка заказа
+        console.log('Emitting order:submit event');
         events.emit('order:submit');
     }
 });

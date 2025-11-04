@@ -30,7 +30,7 @@ export abstract class CardBase extends Component<IProduct> {
     }
 
     setPrice(price: number | null) {
-        this.priceEl.textContent = price === null ? 'Недоступно' : `${price} синапсов`;
+        this.priceEl.textContent = price === null ? 'бесценно' : `${price} синапсов`;
     }
 
     setCategory(category: string) {

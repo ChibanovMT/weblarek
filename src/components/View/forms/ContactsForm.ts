@@ -11,11 +11,6 @@ export class ContactsForm extends FormBase {
 
         this.emailInput.addEventListener('input', () => this.events.emit('contacts:email', { email: this.emailInput.value }));
         this.phoneInput.addEventListener('input', () => this.events.emit('contacts:phone', { phone: this.phoneInput.value }));
-
-        this.container.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.events.emit('order:submit');
-        });
     }
 }
 

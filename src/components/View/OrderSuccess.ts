@@ -16,7 +16,8 @@ export class OrderSuccess extends Component<unknown> {
     }
 
     setTotal(total: number) {
-        this.descriptionEl.textContent = `Списано ${total} синапсов`;
+        const formattedTotal = total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        this.descriptionEl.textContent = `Списано ${formattedTotal} синапсов`;
     }
 }
 

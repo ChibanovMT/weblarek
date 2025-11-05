@@ -43,18 +43,37 @@ const header = new PageHeader(headerEl, events);
 const gallery = new Gallery(galleryEl);
 const modal = new Modal(modalEl, events);
 
-// Переменные для хранения текущих представлений
-let basketView: BasketView | null = null;
-let orderForm: OrderForm | null = null;
-let contactsForm: ContactsForm | null = null;
+// Запрашиваем HTML-шаблоны один раз и переиспользуем
+const tplCardCatalog = document.querySelector('#card-catalog') as HTMLTemplateElement;
+const tplCardPreview = document.querySelector('#card-preview') as HTMLTemplateElement;
+const tplCardBasket = document.querySelector('#card-basket') as HTMLTemplateElement;
+const tplBasket = document.querySelector('#basket') as HTMLTemplateElement;
+const tplOrder = document.querySelector('#order') as HTMLTemplateElement;
+const tplContacts = document.querySelector('#contacts') as HTMLTemplateElement;
+const tplSuccess = document.querySelector('#success') as HTMLTemplateElement;
+
+if (!tplCardCatalog || !tplCardPreview || !tplCardBasket || !tplBasket || !tplOrder || !tplContacts || !tplSuccess) {
+    throw new Error('Required HTML templates not found');
+}
+
+// Утилита для клонирования содержимого шаблона
+function cloneTemplate(tpl: HTMLTemplateElement): HTMLElement {
+    return tpl.content.cloneNode(true) as HTMLElement;
+}
+
+// Единое состояние представлений (ссылка неизменна)
+const ui = {
+    basketView: null as BasketView | null,
+    orderForm: null as OrderForm | null,
+    contactsForm: null as ContactsForm | null
+};
 
 // ===== Обработчики событий моделей данных =====
 
 // Обработчик события catalog:items - отображение каталога товаров
 events.on('catalog:items', ({ items }: { items: IProduct[]; total: number }) => {
     const cardTemplates = items.map((product) => {
-        const template = document.querySelector('#card-catalog') as HTMLTemplateElement;
-        const cardElement = template.content.cloneNode(true) as HTMLElement;
+        const cardElement = cloneTemplate(tplCardCatalog);
         const card = new CardCatalog(cardElement.firstElementChild as HTMLElement, events);
         return card.render(product);
     });
@@ -71,8 +90,7 @@ events.on('catalog:selected', ({ id }: { id: string | null }) => {
     const product = catalog.getProductById(id);
     if (!product) return;
 
-    const template = document.querySelector('#card-preview') as HTMLTemplateElement;
-    const previewElement = template.content.cloneNode(true) as HTMLElement;
+    const previewElement = cloneTemplate(tplCardPreview);
     const preview = new CardPreview(previewElement.firstElementChild as HTMLElement, events);
     preview.render({ ...product, description: product.description });
     preview.setInCart(cart.has(product.id));
@@ -83,19 +101,21 @@ events.on('catalog:selected', ({ id }: { id: string | null }) => {
 events.on('cart:changed', ({ count, total }: { items: IProduct[]; count: number; total: number }) => {
     header.setCounter(count);
 
-    // Если корзина открыта, обновить её содержимое
-    if (basketView) {
-        const items = cart.getItems();
-        const cardTemplates = items.map((product, index) => {
-            const template = document.querySelector('#card-basket') as HTMLTemplateElement;
-            const cardElement = template.content.cloneNode(true) as HTMLElement;
-            const card = new CardBasket(cardElement.firstElementChild as HTMLElement, events);
-            return card.render({ ...product, index: index + 1 });
-        });
-        basketView.setItems(cardTemplates);
-        basketView.setTotal(total);
-        basketView.setDisabled(items.length === 0);
+    // Держим представление корзины синхронизированным всегда, независимо от видимости
+    if (!ui.basketView) {
+        const basketElement = cloneTemplate(tplBasket);
+        ui.basketView = new BasketView(basketElement.firstElementChild as HTMLElement, events);
     }
+
+    const items = cart.getItems();
+    const cardTemplates = items.map((product, index) => {
+        const cardElement = cloneTemplate(tplCardBasket);
+        const card = new CardBasket(cardElement.firstElementChild as HTMLElement, events);
+        return card.render({ ...product, index: index + 1 });
+    });
+    ui.basketView.setItems(cardTemplates);
+    ui.basketView.setTotal(total);
+    ui.basketView.setDisabled(items.length === 0);
 });
 
 // Обработчик события user:changed - валидация формы
@@ -103,33 +123,41 @@ events.on('user:changed', () => {
     const errors = user.validate();
 
     // Валидация для OrderForm (только payment и address)
-    if (orderForm) {
+    if (ui.orderForm) {
         const orderErrors: string[] = [];
         if (errors.payment) orderErrors.push(errors.payment);
         if (errors.address) orderErrors.push(errors.address);
         const isOrderValid = !errors.payment && !errors.address;
         
-        orderForm.setValid(isOrderValid);
+        ui.orderForm.setValid(isOrderValid);
         if (!isOrderValid) {
-            orderForm.setErrors(orderErrors.join(', '));
+            ui.orderForm.setErrors(orderErrors.join(', '));
         } else {
-            orderForm.setErrors('');
+            ui.orderForm.setErrors('');
         }
+
+        // Синхронизация значений формы с моделью пользователя
+        ui.orderForm.setPayment(user.payment);
+        ui.orderForm.setFieldValue('address', user.address);
     }
 
     // Валидация для ContactsForm (только email и phone)
-    if (contactsForm) {
+    if (ui.contactsForm) {
         const contactsErrors: string[] = [];
         if (errors.email) contactsErrors.push(errors.email);
         if (errors.phone) contactsErrors.push(errors.phone);
         const isContactsValid = !errors.email && !errors.phone;
         
-        contactsForm.setValid(isContactsValid);
+        ui.contactsForm.setValid(isContactsValid);
         if (!isContactsValid) {
-            contactsForm.setErrors(contactsErrors.join(', '));
+            ui.contactsForm.setErrors(contactsErrors.join(', '));
         } else {
-            contactsForm.setErrors('');
+            ui.contactsForm.setErrors('');
         }
+
+        // Синхронизация значений формы с моделью пользователя
+        ui.contactsForm.setFieldValue('email', user.email);
+        ui.contactsForm.setFieldValue('phone', user.phone);
     }
 });
 
@@ -166,44 +194,47 @@ events.on('card:remove', ({ id }: { id: string }) => {
 
 // Обработчик события basket:open - открытие корзины
 events.on('basket:open', () => {
-    const template = document.querySelector('#basket') as HTMLTemplateElement;
-    const basketElement = template.content.cloneNode(true) as HTMLElement;
-    basketView = new BasketView(basketElement.firstElementChild as HTMLElement, events);
+    if (!ui.basketView) {
+        const basketElement = cloneTemplate(tplBasket);
+        ui.basketView = new BasketView(basketElement.firstElementChild as HTMLElement, events);
+    }
 
     const items = cart.getItems();
     const cardTemplates = items.map((product, index) => {
-        const cardTemplate = document.querySelector('#card-basket') as HTMLTemplateElement;
-        const cardElement = cardTemplate.content.cloneNode(true) as HTMLElement;
+        const cardElement = cloneTemplate(tplCardBasket);
         const card = new CardBasket(cardElement.firstElementChild as HTMLElement, events);
         return card.render({ ...product, index: index + 1 });
     });
-    basketView.setItems(cardTemplates);
-    basketView.setTotal(cart.getTotal());
-    basketView.setDisabled(items.length === 0);
+    ui.basketView.setItems(cardTemplates);
+    ui.basketView.setTotal(cart.getTotal());
+    ui.basketView.setDisabled(items.length === 0);
 
-    modal.open(basketView.render());
+    modal.open(ui.basketView.render());
 });
 
 // Обработчик события order:open - открытие формы оформления заказа
 events.on('order:open', () => {
     user.clear();
-    const template = document.querySelector('#order') as HTMLTemplateElement;
-    const orderElement = template.content.cloneNode(true) as HTMLElement;
-    orderForm = new OrderForm(orderElement.firstElementChild as HTMLElement, events);
-    orderForm.setPayment(user.payment);
-    orderForm.setFieldValue('address', user.address);
-    modal.setContent(orderForm.render());
+    const orderElement = cloneTemplate(tplOrder);
+    if (!ui.orderForm) {
+        ui.orderForm = new OrderForm(orderElement.firstElementChild as HTMLElement, events);
+    }
+    ui.orderForm.setPayment(user.payment);
+    ui.orderForm.setFieldValue('address', user.address);
+    modal.setContent(ui.orderForm.render());
 });
 
 // Обработчик события order:next - переход ко второй форме оформления
 events.on('order:next', () => {
-    orderForm = null; // Сбрасываем ссылку на первую форму
-    const template = document.querySelector('#contacts') as HTMLTemplateElement;
-    const contactsElement = template.content.cloneNode(true) as HTMLElement;
-    contactsForm = new ContactsForm(contactsElement.firstElementChild as HTMLElement, events);
-    contactsForm.setFieldValue('email', user.email);
-    contactsForm.setFieldValue('phone', user.phone);
-    modal.setContent(contactsForm.render());
+    // Переходим ко второму шагу — больше не обрабатываем сабмиты первой формы
+    ui.orderForm = null;
+    const contactsElement = cloneTemplate(tplContacts);
+    if (!ui.contactsForm) {
+        ui.contactsForm = new ContactsForm(contactsElement.firstElementChild as HTMLElement, events);
+    }
+    ui.contactsForm.setFieldValue('email', user.email);
+    ui.contactsForm.setFieldValue('phone', user.phone);
+    modal.setContent(ui.contactsForm.render());
 });
 
 // Обработчик события order:submit - отправка заказа
@@ -217,8 +248,8 @@ events.on('order:submit', async () => {
     const items = cart.getItems().filter(item => item.price !== null);
     if (items.length === 0) {
         console.log('Cart is empty');
-        if (contactsForm) {
-            contactsForm.setErrors('Корзина пуста. Добавьте товары для оформления заказа.');
+        if (ui.contactsForm) {
+            ui.contactsForm.setErrors('Корзина пуста. Добавьте товары для оформления заказа.');
         }
         return;
     }
@@ -228,7 +259,8 @@ events.on('order:submit', async () => {
         email: user.email,
         phone: user.phone,
         address: user.address,
-        items: items.map(item => ({ id: item.id, price: item.price as number }))
+        items: items.map(item => item.id),
+        total: cart.getTotal()
     };
 
     console.log('Sending order:', orderData);
@@ -236,12 +268,11 @@ events.on('order:submit', async () => {
         const response = await shopApi.postOrder(orderData);
         console.log('Order submitted successfully:', response);
 
-        const template = document.querySelector('#success') as HTMLTemplateElement;
-        if (!template) {
+        if (!tplSuccess) {
             console.error('Success template not found');
             return;
         }
-        const successElement = template.content.cloneNode(true) as HTMLElement;
+        const successElement = cloneTemplate(tplSuccess);
         const successContainer = successElement.firstElementChild as HTMLElement;
         if (!successContainer) {
             console.error('Success template has no content');
@@ -257,8 +288,11 @@ events.on('order:submit', async () => {
         console.log('Modal opened with success content');
     } catch (error) {
         console.error('Failed to submit order:', error);
-        if (contactsForm) {
-            contactsForm.setErrors('Ошибка при отправке заказа. Попробуйте ещё раз.');
+        const message = typeof error === 'string' && error.trim().length > 0
+            ? error
+            : 'Ошибка при отправке заказа. Попробуйте ещё раз.';
+        if (ui.contactsForm) {
+            ui.contactsForm.setErrors(message);
         }
     }
 });
@@ -266,8 +300,8 @@ events.on('order:submit', async () => {
 // Обработчик события order:payment - выбор способа оплаты
 events.on('order:payment', ({ payment }: { payment: TPayment }) => {
     user.setPayment(payment);
-    if (orderForm) {
-        orderForm.setPayment(payment);
+    if (ui.orderForm) {
+        ui.orderForm.setPayment(payment);
     }
 });
 
@@ -303,7 +337,7 @@ events.on('form:submit', () => {
     const errors = user.validate();
 
     // Определяем, какая форма отправлена, по текущему контексту
-    if (orderForm) {
+    if (ui.orderForm) {
         console.log('Processing OrderForm submit');
         // Для OrderForm проверяем только payment и address
         const isOrderValid = !errors.payment && !errors.address;
@@ -313,7 +347,7 @@ events.on('form:submit', () => {
         }
         // Переход ко второй форме оформления заказа
         events.emit('order:next');
-    } else if (contactsForm) {
+    } else if (ui.contactsForm) {
         console.log('Processing ContactsForm submit');
         // Для ContactsForm при отправке проверяем все поля
         if (!user.isValid()) {
@@ -331,9 +365,9 @@ events.on('success:close', () => {
     cart.clear();
     user.clear();
     modal.close();
-    basketView = null;
-    orderForm = null;
-    contactsForm = null;
+    ui.basketView = null;
+    ui.orderForm = null;
+    ui.contactsForm = null;
 });
 
 // ===== Получение каталога с сервера и сохранение в модели =====

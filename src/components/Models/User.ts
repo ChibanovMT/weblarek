@@ -24,39 +24,27 @@ export class User implements IBuyer {
         this.phone = data?.phone ?? '';
     }
 
-    public set(data: Partial<IBuyer>): void {
-        if (data.payment !== undefined) this.payment = data.payment;
-        if (data.address !== undefined) this.address = data.address;
-        if (data.email !== undefined) this.email = data.email;
-        if (data.phone !== undefined) this.phone = data.phone;
-        this.events?.emit('user:changed', this.get());
-    }
-
     public setPayment(payment: TPayment): void {
         this.payment = payment;
-        this.events?.emit('user:payment', { payment });
-        this.events?.emit('user:changed', this.get());
+        this.events?.emit('user:changed', this.getBuyer());
     }
 
     public setAddress(address: string): void {
         this.address = address;
-        this.events?.emit('user:address', { address });
-        this.events?.emit('user:changed', this.get());
+        this.events?.emit('user:changed', this.getBuyer());
     }
 
     public setPhone(phone: string): void {
         this.phone = phone;
-        this.events?.emit('user:phone', { phone });
-        this.events?.emit('user:changed', this.get());
+        this.events?.emit('user:changed', this.getBuyer());
     }
 
     public setEmail(email: string): void {
         this.email = email;
-        this.events?.emit('user:email', { email });
-        this.events?.emit('user:changed', this.get());
+        this.events?.emit('user:changed', this.getBuyer());
     }
 
-    public get(): IBuyer {
+    public getBuyer(): IBuyer {
         return {
             payment: this.payment,
             address: this.address,
@@ -71,7 +59,7 @@ export class User implements IBuyer {
         this.email = '';
         this.phone = '';
         this.events?.emit('user:cleared');
-        this.events?.emit('user:changed', this.get());
+        this.events?.emit('user:changed', this.getBuyer());
     }
 
     public validate(): BuyerValidationErrors {

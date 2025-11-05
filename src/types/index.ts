@@ -30,7 +30,8 @@ export interface IProductsResponse {
 }
 
 export interface IOrderRequest {
-    items: { id: string; price: number }[];
+    items: string[];
+    total: number;
     payment: TPayment;
     email: string;
     phone: string;

@@ -5,15 +5,8 @@ export class Cart {
     protected items: IProduct[] = [];
     protected events?: IEvents;
 
-    constructor(items?: IProduct[]);
-    constructor(events?: IEvents, items?: IProduct[]);
-    constructor(arg1?: IEvents | IProduct[], arg2?: IProduct[]) {
-        if (Array.isArray(arg1)) {
-            this.items = arg1.slice();
-        } else {
-            this.events = arg1;
-            if (arg2) this.items = arg2.slice();
-        }
+    constructor(events?: IEvents) {
+        this.events = events;
     }
 
     public getItems(): ReadonlyArray<IProduct> {
@@ -21,7 +14,6 @@ export class Cart {
     }
 
     public add(product: IProduct): void {
-        // Do not add the same product twice
         if (this.has(product.id)) {
             return;
         }

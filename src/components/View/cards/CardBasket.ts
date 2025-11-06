@@ -26,7 +26,7 @@ export class CardBasket extends CardBase {
         if (data?.id) this.setId(data.id);
         if (data?.title) this.setTitle(data.title);
         if (data?.price !== undefined) this.setPrice(data.price as number | null);
-        if (typeof (data as any).index === 'number') this.setIndex((data as any).index);
+        if (typeof data?.index === 'number') this.setIndex(data.index);
         return this.container;
     }
 }

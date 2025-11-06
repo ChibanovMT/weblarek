@@ -15,13 +15,6 @@ export class BasketView extends Component<unknown> {
         this.checkoutButton = this.container.querySelector('.basket__button') as HTMLButtonElement;
 
         this.checkoutButton.addEventListener('click', () => this.events.emit('order:open'));
-        this.listEl.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.closest('.basket__item-delete')) {
-                const id = (target.closest('[data-id]') as HTMLElement)?.dataset?.id;
-                if (id) this.events.emit('basket:item-remove', { id });
-            }
-        });
     }
 
     setItems(items: HTMLElement[]) {

@@ -1,11 +1,14 @@
 import { IBuyer, TPayment, BuyerValidationErrors } from "../../types";
 import type { IEvents } from "../base/Events";
 
+export type OrderStep = 'order' | 'contacts' | null;
+
 export class User implements IBuyer {
     payment: TPayment;
     address: string;
     email: string;
     phone: string;
+    orderStep: OrderStep;
     protected events?: IEvents;
 
     constructor(data?: Partial<IBuyer>);
@@ -22,6 +25,7 @@ export class User implements IBuyer {
         this.address = data?.address ?? '';
         this.email = data?.email ?? '';
         this.phone = data?.phone ?? '';
+        this.orderStep = null;
     }
 
     public setPayment(payment: TPayment): void {
@@ -53,11 +57,17 @@ export class User implements IBuyer {
         };
     }
 
+    public setOrderStep(step: OrderStep): void {
+        this.orderStep = step;
+        this.events?.emit('user:changed', this.getBuyer());
+    }
+
     public clear(): void {
         this.payment = 'online';
         this.address = '';
         this.email = '';
         this.phone = '';
+        this.orderStep = null;
         this.events?.emit('user:cleared');
         this.events?.emit('user:changed', this.getBuyer());
     }
@@ -73,6 +83,6 @@ export class User implements IBuyer {
 
     public isValid(): boolean {
         const errors = this.validate();
-        return !errors.payment && !errors.email && !errors.phone && !errors.address;
+        return Object.keys(errors).length === 0;
     }
 }
